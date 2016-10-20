@@ -1,0 +1,149 @@
+package Core;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Scanner;
+import Utilities.Console;
+
+public class CodeTerminatorClient {
+
+	public static void init(String[] args) throws InterruptedException {
+
+		Scanner in = new Scanner(System.in);
+		Console.ClearConsole();
+		System.out.println("This is Code Terminators, not for the feint of heart...");
+		
+		boolean validInput = false;
+		String playerName = null;
+		
+		//Getting the Warrior's Name
+		validInput = false;
+		while(!validInput){
+			System.out.print("Tell me, what is your Name:  ");
+			String name = in.next();
+			
+			if(name == null || name == "")
+				System.out.print("I didn't quite get that, What is your Name again?:  ");
+			else
+			{
+				playerName = name;
+				validInput = true;
+			}
+			
+			Console.ClearConsole();
+		}
+				
+		//Connect to the server
+		validInput = false;
+		while(!validInput){
+			System.out.print("Please enter the IP or Host Name of the server you wish to join:  ");
+			String serverName = in.next();
+			
+			if(serverName == null || serverName == "")
+				System.out.print("Please enter a valid Server IP or Host Name:  ");
+			else
+			{
+				//we have valid text entry, now check to see if we can connect to the server...
+				try(
+						Socket ctSocket = new Socket(serverName, Constants.DefaultPort);
+				        PrintWriter socketOut = new PrintWriter(ctSocket.getOutputStream(), true);
+				        BufferedReader socketIn = new BufferedReader(new InputStreamReader(ctSocket.getInputStream()));
+				){
+					//if in here, then all worked out ok...
+					ServerConnected(socketOut, socketIn, playerName);
+					
+				}  catch (UnknownHostException e) {
+			        System.err.println("Don't know about host " + serverName);
+			        System.exit(1);
+			    } catch (IOException e) {
+			    	System.out.print("Server is not listening on the Default Port, enter Port to use:  ");
+			    	int serverPort = in.nextInt();
+			    	
+			    	try(
+							Socket ctSocket = new Socket(serverName, serverPort);
+					        PrintWriter socketOut = new PrintWriter(ctSocket.getOutputStream(), true);
+					        BufferedReader socketIn = new BufferedReader(new InputStreamReader(ctSocket.getInputStream()));
+					){
+						//if in here, then all worked out ok...
+						ServerConnected(socketOut, socketIn, playerName);
+						
+					}  catch (UnknownHostException e2) {
+				        System.err.println("Don't know about host " + serverName);
+				        System.exit(1);
+				    } catch (IOException e2) {
+				    	System.err.println("Couldn't get I/O for the connection to " + serverName);
+				        System.exit(1);
+				    }
+			    }
+							
+				validInput = true;
+			}
+		}	
+	}
+	
+	
+	private static void ServerConnected(PrintWriter outServer, BufferedReader inServer, String playerName) throws IOException, InterruptedException{
+		CodeTerminatorProtocol proto = new CodeTerminatorProtocol(playerName);
+		proto.AttachSocketWriter(outServer);
+		
+		//handle the initial connection 
+		String newConnection = inServer.readLine();
+		proto.ProcessRequest(newConnection);
+		
+		
+		String newWarriorAck = inServer.readLine();
+		proto.ProcessRequest(newWarriorAck);
+
+		if(proto.Disconnect)
+			return;
+		
+		CodeTerminatorClientThread clientListener = new CodeTerminatorClientThread(proto, inServer);
+		CodeTerminatorClientRegenThread clientRegen = new CodeTerminatorClientRegenThread(proto);
+		
+		clientRegen.start();
+		clientListener.start();
+		
+		Scanner in = new Scanner(System.in);
+		int userAction = -1;
+		proto.RenderPlayerScreen();
+		
+		while(!proto.Disconnect && clientListener.isAlive() && clientRegen.isAlive()){
+			
+			try{
+				proto.RenderActionQuery();				
+				String rawInput = in.next();
+				
+				if(proto.Disconnect)
+					break;
+				
+				userAction = Integer.parseInt(rawInput);
+				
+				
+				proto.RenderPlayerScreen();
+				proto.ProcessClientAction(userAction);
+			}
+			catch(Exception ex){
+				System.out.println("Error with something");
+				System.out.println(ex.toString());
+				
+				proto.RenderPlayerScreen();
+			}
+		}
+		
+		clientListener.interrupt();
+		clientRegen.interrupt();
+		
+		
+		Console.ClearConsole();
+		
+		if(proto.Player.CurrentHealth > 0)		
+			System.out.println(String.format("He who fights and runs away, lives to fight another day!   Until next time %s...", proto.Player.Name));
+		else
+			System.out.println(String.format("You've been slain by %s, better luck next time!", proto.ClientsTarget.Name));
+			
+	}
+}

@@ -1,0 +1,28 @@
+<Entities.Warrior>
+	<Type>Troll</Type>
+	<Description>Dumb and Slow</Description>
+	<Origin>The Caves</Origin>
+	<Weak>
+		<Name>Toxic Breath</Name>
+		<Strength>3</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>Smash</Name>
+		<Strength>8</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>Pile Driver</Name>
+		<Strength>15</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>TROLL SMASH!</string>
+		<string>YOU CANNOT DEFEAT ME!</string>
+	</Taunts>
+</Entities.Warrior>

@@ -1,0 +1,28 @@
+<Entities.Warrior>
+	<Type>Alien</Type>
+	<Description>Prepare to be pulverized</Description>
+	<Origin>Above and Beyond</Origin>
+	<Weak>
+		<Name>Alien Goo</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>Ray Gun Attack</Name>
+		<Strength>5</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>Space Ship Air Strike</Name>
+		<Strength>12</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>80</MaxHealth>
+	<CurrentHealth>80</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>Prepare to be probed</string>
+		<string>ET PHONE...your mom</string>
+	</Taunts>
+</Entities.Warrior>

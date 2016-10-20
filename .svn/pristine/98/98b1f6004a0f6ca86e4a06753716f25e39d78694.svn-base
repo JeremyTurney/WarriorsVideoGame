@@ -1,0 +1,27 @@
+<Entities.Warrior>
+	<Type>Wiz</Type>
+	<Description>Magic is his specialty</Description>
+	<Origin>Oz</Origin>
+	<Weak>
+		<Name>Staff hit</Name>
+		<Strength>2</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>spell</Name>
+		<Strength>7</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>flame burst</Name>
+		<Strength>10</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>It is ludicrous these mortals even attempt to enter my realm</string>
+	</Taunts>
+</Entities.Warrior>

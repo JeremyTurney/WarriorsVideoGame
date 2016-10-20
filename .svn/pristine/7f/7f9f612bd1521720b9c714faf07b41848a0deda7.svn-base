@@ -1,0 +1,29 @@
+<Entities.Warrior>
+	<Type>Dragon</Type>
+	<Description>Hell Fire</Description>
+	<Origin>The Clouds</Origin>
+	<Weak>
+		<Name>Scratch</Name>
+		<Strength>3</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>Tail Whip</Name>
+		<Strength>5</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>Fire Ball</Name>
+		<Strength>10</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>96</MaxHealth>
+	<CurrentHealth>96</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>Prepare to BURN!</string>
+		<string>Who a big scary dragon... this guy</string>
+	</Taunts>
+
+</Entities.Warrior>

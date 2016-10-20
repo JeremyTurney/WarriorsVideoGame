@@ -1,0 +1,28 @@
+<Entities.Warrior>
+	<Type>Ninja Turtle</Type>
+	<Description>Turtles in a half Shell</Description>
+	<Origin>The Sewers</Origin>
+	<Weak>
+		<Name>leg Sweep</Name>
+		<Strength>2</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>Nun-Chuck Attack</Name>
+		<Strength>7</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>Decapitate</Name>
+		<Strength>20</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>Surfs up Dude!</string>
+		<string>Master splinter has trained me well</string>
+	</Taunts>
+</Entities.Warrior>

@@ -1,0 +1,29 @@
+<Entities.Warrior>
+	<Type>Yoshitsune</Type>
+	<Description>Samurai, quick, good with a sword</Description>
+	<Origin>Japan</Origin>
+	<Weak>
+		<Name>punch</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>kick</Name>
+		<Strength>5</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>slice n dice</Name>
+		<Strength>11</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>The man to beat me has yet to be born!</string>
+		<string>Why does it look like this is your last stand?</string>
+		<string>This is too easy!</string>
+	 </Taunts>
+</Entities.Warrior>

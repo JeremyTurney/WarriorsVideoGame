@@ -1,0 +1,29 @@
+<Entities.Warrior>
+	<Type>Don Quixote</Type>
+	<Description>Knight, slow, delusional, chivalrous</Description>
+	<Origin>Spain</Origin>
+	<Weak>
+		<Name>punch</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>sword hit</Name>
+		<Strength>5</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>windmill attack</Name>
+		<Strength>8</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>You are the reason they put instructions on shampoo</string>
+		<string>Am I hallucinating, or am I fighting a princess?</string>
+		<string>Why does it feel like I am fighting a pillow?</string>
+	 </Taunts>
+</Entities.Warrior>

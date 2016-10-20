@@ -1,0 +1,29 @@
+<Entities.Warrior>
+	<Type>Ninja</Type>
+	<Description>White Shadow</Description>
+	<Origin>your nightmares</Origin>
+	<Weak>
+		<Name>jab</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>katana</Name>
+		<Strength>5</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>jump kick</Name>
+		<Strength>10</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>76</MaxHealth>
+	<CurrentHealth>76</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>It is time to take out the trash!</string>
+		<string>Look at this bum</string>
+		<string>Can I please get some real competition?</string>
+	</Taunts>
+</Entities.Warrior>

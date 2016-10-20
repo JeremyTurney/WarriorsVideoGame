@@ -1,0 +1,76 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Core;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ *
+ * @author Proph
+ */
+public class CodeTerminatorClientThread extends Thread{
+	
+	private CodeTerminatorProtocol _proto;
+	private BufferedReader _in;
+	
+	public CodeTerminatorClientThread(CodeTerminatorProtocol proto, BufferedReader in){
+		super("CodeTerminatorClientThread");
+		
+		_in = in;
+		_proto = proto;
+	}
+	
+		@Override
+	public void interrupt(){
+		
+		if(Constants.Debug)
+			System.out.println("interrupt fired.. need to kill this class...");
+		
+		_kill = true;
+	}
+	
+	private boolean _kill = false;
+	
+	@Override
+	public void run(){
+		
+		if(Constants.Debug)
+			System.out.println("starting client thread...");
+		
+		String serverMessage = null;
+		
+		try {
+			while(!_kill){
+				
+				if(_in.ready())
+					serverMessage = _in.readLine();
+
+				if(_kill)
+					break;
+				
+				if(serverMessage != null)
+					_proto.ProcessRequest(serverMessage);
+
+				if(_proto.Disconnect)
+					break;
+				
+				serverMessage = null;
+			}
+		} 
+		catch (Exception ex) 
+		{
+			System.out.println("exception thrown in the client thread...");
+			System.out.println(ex.toString());
+		}
+		
+		if(Constants.Debug)
+			System.out.println("Exiting the Client Thread...");
+	}
+}

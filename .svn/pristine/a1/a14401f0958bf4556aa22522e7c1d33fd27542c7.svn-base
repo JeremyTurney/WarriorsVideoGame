@@ -1,0 +1,27 @@
+<Entities.Warrior>
+	<Type>Infected</Type>
+	<Description>Zombie, slow, ready to bite</Description>
+	<Origin>Death</Origin>
+	<Weak>
+		<Name>grab</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>scratch</Name>
+		<Strength>3</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>bite</Name>
+		<Strength>16</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>72</MaxHealth>
+	<CurrentHealth>72</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>Death is upon you</string>
+	 </Taunts>
+</Entities.Warrior>

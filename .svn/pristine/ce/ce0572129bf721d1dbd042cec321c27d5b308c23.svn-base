@@ -1,0 +1,29 @@
+<Entities.Warrior>
+	<Type>King Leonidas</Type>
+	<Description> Spartan king, fast, athletic, fierce</Description>
+	<Origin>Sparta, Greek</Origin>
+	<Weak>
+		<Name>punch</Name>
+		<Strength>3</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>sword slash</Name>
+		<Strength>6</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>spartan kick</Name>
+		<Strength>12</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>100</MaxHealth>
+	<CurrentHealth>100</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>I am going to gut you like a fish!</string>
+		<string>My queen hits harder then you!</string>
+		<string>This is Sparta!</string>
+	</Taunts>
+</Entities.Warrior>

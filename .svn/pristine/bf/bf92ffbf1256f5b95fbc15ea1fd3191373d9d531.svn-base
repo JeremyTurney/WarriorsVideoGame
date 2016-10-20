@@ -1,0 +1,789 @@
+package Core;
+
+import Core.CodeTerminatorSocketMessage.MessageTypes;
+import Entities.Attack;
+import Entities.Warrior;
+import Utilities.Console;
+import static Utilities.Xml.DeserializeXml;
+import static Utilities.Xml.SerializeObjectNoLineBreaks;
+import java.io.PrintWriter;
+import java.util.Map;
+import java.util.Random;
+import java.util.Scanner;
+import static java.lang.Integer.parseInt;
+
+public class CodeTerminatorProtocol {
+		
+	public Warrior ClientsTarget;
+	public Warrior Player;
+	public boolean Disconnect = false;
+	
+	private Map<String, Warrior> _serverClients;// dictionary to warrior object with a key; Key value pair. 
+	private PrintWriter _out;
+	private String _realmName;
+	private CodeTerminatorServerThread _serverThread;
+	private Random _dice = new Random();
+	private String _playerName;
+	
+	//Server instanciation of the protocol
+	public CodeTerminatorProtocol(String realmName, CodeTerminatorServerThread serverThread){
+		_realmName = realmName;
+		_serverThread = serverThread;
+	}
+	
+	//Client instanciation of the protocol
+	public CodeTerminatorProtocol(String playerName){
+		_playerName = playerName;
+	}
+
+	public void AttachSocketWriter(PrintWriter out){
+		_out = out;
+	}
+	
+	public void ProcessRequest(String xml){
+		CodeTerminatorSocketMessage msg = DeserializeXml(xml);
+		ProcessRequest(msg);
+	}
+		
+	public void ProcessRequest(CodeTerminatorSocketMessage msg){
+		switch(msg.MessageType){
+			case New:	
+				//from server to client
+				msg.MessageType = MessageTypes.Connected;
+				msg.FlushArguments();
+				msg.Arguments = CodeTerminatorServer.GetWarriorFiles();
+				SendSocketMessage(msg);
+				break;
+				
+			case Connected:
+				//from client to server
+				Scanner in = new Scanner(System.in);
+				
+				boolean validInput = false;
+				while(!validInput){
+					System.out.println("The following warriors are available for use:");
+					//loop through all *.wdat files, show the filename to the user with an index number
+
+					int maxOption = msg.Arguments.size();
+					for(int i = 0; i < maxOption; i++){
+						String name = msg.Arguments.get(i);
+						System.out.println(String.format("%d:  %s", i + 1, name.substring(0, name.length() - 5)));
+					}
+
+					System.out.print("Enter the number corresponding to the Warrior you wish to use:  ");
+					int warriorChoice = in.nextInt();
+
+					if(0 < warriorChoice && warriorChoice <= maxOption){
+						//verify that the number chosen is a valid option 
+						
+						String chosenFileName = String.format("%s", msg.Arguments.get(warriorChoice - 1));
+						
+						msg.FlushArguments();
+						msg.MessageType = MessageTypes.New_Warrior;
+						msg.Arguments.add(_playerName);
+						msg.Arguments.add(chosenFileName);
+						SendSocketMessage(msg);
+
+						validInput = true;
+					}
+
+					Console.ClearConsole();
+				}
+				break;
+				
+			case New_Warrior:
+				//from server to client
+				if(CodeTerminatorServer.ConnectedWarriors.containsKey(msg.Arguments.get(0))){
+					//if in here, we have a problem, player can't join
+					msg.MessageType = MessageTypes.New_Warrior_Bad_Name;
+					msg.FlushArguments();
+					SendSocketMessage(msg);
+				}
+				else{
+					msg.MessageType = MessageTypes.New_Warrior_Ack;
+					
+					Warrior newWarrior =  CodeTerminatorServer.LoadWarriorFile(msg.Arguments.get(1));
+					newWarrior.Name = msg.Arguments.get(0);
+					
+					_serverThread.ConnectedClientsName = newWarrior.Name;
+					CodeTerminatorServer.ConnectedWarriors.put(newWarrior.Name, newWarrior);
+					System.out.println(String.format("Client [%s] just connected to the realm playing class: %s", newWarrior.Name, newWarrior.Type));
+					
+					msg.FlushArguments();
+					msg.ClientWarrior = newWarrior;
+					msg.Arguments.add(_realmName);
+					SendSocketMessage(msg);
+					
+					msg.FlushArguments();
+					msg.MessageType = MessageTypes.Broadcast_New_Warrior;
+					msg.ServerWarriors = CodeTerminatorServer.ConnectedWarriors;
+					msg.TargetWarrior = newWarrior;
+					_serverThread.BroadcastMessage(msg);
+				}
+				break;
+			
+			case New_Warrior_Bad_Name:
+				Disconnect = true;
+				System.out.println("The player name you've entered is already in use, please run the game again and use a different name.");
+				break;
+				
+			case New_Warrior_Ack:
+				_realmName = msg.Arguments.get(0);
+				Player = msg.ClientWarrior;
+				break;
+				
+			case Updated_Warrior_List:
+				_serverClients = msg.ServerWarriors;
+				_serverClients.remove(Player.Name);
+				
+				if(ClientsTarget != null)
+					ClientsTarget = msg.ServerWarriors.get(ClientsTarget.Name);
+				
+				RenderPlayerScreen();
+				RenderActionQuery();
+				break;
+						
+			case Target_Change:
+				msg.MessageType = MessageTypes.Target_Change_Ack;
+				_serverThread.BroadcastMessage(msg);
+				break;
+				
+			case Target_Change_Ack:
+				//if my name is the "target's" name, then the client targeting me is my target
+				if(Constants.Debug){
+					System.out.println("target change ack received...");
+					System.out.println("my name:  " + Player.Name);
+					System.out.println("msg.Target name:  " +  msg.TargetWarrior.Name);
+				}
+				
+				if(Player.Name.equals(msg.TargetWarrior.Name)){
+					if(Constants.Debug)
+						System.out.println("msg.target name  is the same as mine...");
+					
+					ClientsTarget = msg.ClientWarrior;
+					Player.HasTarget = ClientsTarget.HasTarget;
+					
+					
+					String notifyMsg;
+					
+					if(Player.HasTarget)
+						notifyMsg = String.format("You've been targeted by %s!  (and you automatically made him your target as well)", ClientsTarget.Name);
+					else{
+						if(ClientsTarget.CurrentHealth > 0)
+							notifyMsg = String.format("%s has disengaged you...   The Coward!", ClientsTarget.Name);
+						else{
+                                 
+							ClientsTarget = null;
+							notifyMsg = String.format("You've slain %s!", ClientsTarget.Name);
+                                                        
+						}
+					}
+					
+					SetClientNotificationMessage(notifyMsg);
+					RenderPlayerScreen();
+					RenderActionQuery();
+					
+					SendServerMyStatusChange();
+				}
+				
+				//if my name is the "client" name, then i can update my player info
+				if(msg.ClientWarrior != null && Player.Name.equals(msg.ClientWarrior.Name)){
+					ClientsTarget = msg.TargetWarrior;
+					Player.HasTarget = msg.ClientWarrior.HasTarget;
+					RenderPlayerScreen();
+					RenderActionQuery();
+					
+					SendServerMyStatusChange();
+				}
+				break;
+				
+			case Update_Server_MyStats:
+				CodeTerminatorServer.ConnectedWarriors.replace(msg.ClientWarrior.Name, msg.ClientWarrior);
+				
+				msg.FlushArguments();
+				msg.MessageType = MessageTypes.Updated_Warrior_List;
+				msg.ServerWarriors = CodeTerminatorServer.ConnectedWarriors;
+				_serverThread.BroadcastMessage(msg);
+				break;
+				
+			case Broadcast_New_Warrior:
+				_serverClients = msg.ServerWarriors;
+				_serverClients.remove(Player.Name);
+				
+				RenderPlayerScreen();
+				SetClientNotificationMessage(String.format("%s joins the realm of \"%s\", all Warriors turn to look and stare...", msg.TargetWarrior.Name, _realmName));
+				RenderActionQuery();
+				break;
+				
+			case Broadcast_Warrior_Died:
+				_serverClients = msg.ServerWarriors;
+				_serverClients.remove(Player.Name);
+				
+				RenderPlayerScreen();
+				SetClientNotificationMessage(String.format("%s has been slain and now leaves this realm...", msg.TargetWarrior.Name));
+				RenderActionQuery();
+				break;
+				
+			case Broadcast_Warrior_Left:
+				_serverClients = msg.ServerWarriors;
+				_serverClients.remove(Player.Name);
+				
+				RenderPlayerScreen();
+				SetClientNotificationMessage(String.format("%s has Disconnected from the server...  Run, run away and Never return!", msg.TargetWarrior.Name));
+				RenderActionQuery();
+				break;
+				
+			case Taunt_Target:
+				msg.MessageType = MessageTypes.Taunt_Target_Ack;
+				_serverThread.BroadcastMessage(msg);
+				break;
+				
+			case Taunt_Target_Ack:
+				if(Player.Name.equals(msg.TargetWarrior.Name)){
+					if(Constants.Debug)
+						System.out.println("msg.target name  is the same as mine...");
+
+					String notifyMsg;
+					notifyMsg = String.format("%s <%s> Taunts you:  %s", msg.ClientWarrior.Name, msg.ClientWarrior.Type, msg.Arguments.get(0));	
+					
+					SetClientNotificationMessage(notifyMsg);
+					RenderPlayerScreen();
+					//RenderActionQuery();
+					
+					SendServerMyStatusChange();
+				}
+				break;
+				
+			case Attack_Target:
+				//server receives request from a client to attack this target...
+				
+				//need to identify the 'defense' of the target
+				//need to identify the 'speed' of the target
+				//need to identify the 'speed' of the attacker
+				
+				
+				//damage = roll% * strength - roll% * defense
+				
+				//attack rolls					defense rolls
+				//roll 1 -- miss         0		trip	    0%  reduction
+				//roll 2 -- glancing    20%		glancing   20%
+				//roll 3 -- normal     100%		normal     50%
+				//roll 4 -- normal     100%		normal	   50%
+				//roll 5 -- normal     100%		normal	   50%
+				//roll 6 -- critical   150%		crit	   90%
+				
+				//speed modifiers only modify the distribution of %'s in the above rolls
+				//if we ever work in defense and speed stats...
+				
+				double mod = 1;
+				msg.TargetAttack.StrikeModifier = "";
+				switch(_dice.nextInt() % 6){
+					case 0:
+						mod = 0;
+						msg.TargetAttack.StrikeModifier = "Missed ";
+						break;
+						
+					case 1:
+						mod = .2;
+						msg.TargetAttack.StrikeModifier = "Glancingly ";
+						 break;
+						 
+					case 2: 						
+					case 3:						
+					case 4:
+						mod = 1;
+						break;
+						
+					case 5:
+						mod = 1.5;
+						msg.TargetAttack.StrikeModifier = "Critically ";
+						break;
+				}
+				
+				//modify the base damage by the roll
+				double modDamage = msg.TargetAttack.Strength * mod;
+				Integer intDamage = Integer.valueOf((int) Math.round(modDamage));
+				
+				//broadcast the attack damage to everyone so that the target knows  
+				//		to take damage and tell everyone the results from the hit
+				msg.MessageType = MessageTypes.Attack_Outcome;
+				msg.TargetAttack.Strength = intDamage;
+				_serverThread.BroadcastMessage(msg);
+				break;
+				
+			case Attack_Outcome:
+				if(Player.Name.equals(msg.TargetWarrior.Name)){
+					//if in here, then i'm the guy being attacked...
+					Player.CurrentHealth = Player.CurrentHealth - msg.TargetAttack.Strength;
+					if(Player.CurrentHealth < 0)
+						Player.CurrentHealth = 0;
+					
+					SendServerMyStatusChange();
+					
+					SetClientNotificationMessage(String.format("You were just %shit with \"%s\", it dealt %d damage to you!", 
+								msg.TargetAttack.StrikeModifier, msg.TargetAttack.Name, msg.TargetAttack.Strength));
+						
+					RenderPlayerScreen();
+					
+					if(Player.CurrentHealth > 0){
+						RenderActionQuery();
+					}
+					else{
+                                            
+                                            if (Player.Type != "Zombie")
+                                            {
+                                                switch(_dice.nextInt() % 6){
+                                                   
+                                                    
+                                                    //case 0:
+                                                    //case 1:
+                                                    //case 2:
+                                                    //case 5:
+                                                    case 3:						
+                                                    case 4:
+                                                        Player.Zombify();
+                                                        System.out.println("You have been given new life...As a Zombie! Wish the living good luck");
+                                                        SendServerMyStatusChange();
+                                                        break;
+                                                        
+                                                    default:
+                                                        Disconnect = true;
+                                                        System.out.println("You have been slain! \r\nEnter any action to close the game:");
+                                                        break;
+                                                        
+                                                    }
+                                            }
+                                            else 
+                                            {
+                                                    Disconnect = true;
+                                                    System.out.println("You have been slain! \r\nEnter any action to close the game:");    
+                                            }
+                                            
+						//Disconnect = true;
+						//System.out.println("You have been slain! \r\nEnter any action to close the game:");
+					}
+					
+				}
+				
+				if(Player.Name.equals(msg.ClientWarrior.Name)){
+					//if in here, then i'm the guy doing the attack...
+					SetClientNotificationMessage(String.format("Your attack \"%s\", just %sdealt %d damage to %s!", 
+							msg.TargetAttack.Name, msg.TargetAttack.StrikeModifier, msg.TargetAttack.Strength, msg.TargetWarrior.Name));
+					RenderPlayerScreen();
+					RenderActionQuery();
+				}
+				break;
+								
+				
+			default:
+				break;
+		}
+	}
+	
+	public void SendServerMyStatusChange(){
+		CodeTerminatorSocketMessage respMsg = new CodeTerminatorSocketMessage();
+		respMsg.MessageType = MessageTypes.Update_Server_MyStats;
+		respMsg.ClientWarrior = Player;
+		SendSocketMessage(respMsg);
+	}
+	
+	public void ProcessClientAction(int action){
+		
+		
+		switch(action){
+			case 1: //pick change target
+				EngageTarget();
+				break;
+				
+			case 2: //view player stats
+				ViewTargetStats();
+				break;
+				
+			case 3: //weak attack target
+				AttackTarget(Player.Weak);
+				break;
+				
+			case 4: //average attack target
+				AttackTarget(Player.Normal);
+				break;
+				
+			case 5: //heavy attack target
+				AttackTarget(Player.Strong);
+				break; 
+				 
+			case 6: //disengage target
+				DisengageTarget();			
+				break;
+				
+			case 7: //taunt target
+				TauntTarget();
+				break;
+				
+			case 9: //quit game
+				System.out.println("Quitting game");
+				Disconnect = true;
+				
+				if(Player.HasTarget){
+					//if this player has a target, and is quitting, then we need to disengage, and then quit...
+					DisengageTarget();
+				}
+				break;
+			
+			default:
+				SetClientNotificationMessage("Invalid selection. Please select from the appropriate options");
+				break;
+		}
+	}
+	
+	private void TauntTarget(){
+		
+		Warrior tauntTarget;
+		
+		if(Player.HasTarget){
+			tauntTarget = ClientsTarget;
+		}
+		else{
+			System.out.print("Enter the player's number that you wish to Taunt:  ");
+			tauntTarget = SelectClientPlayer();
+			
+			if(tauntTarget == null)
+				return;
+		}
+		
+		if(Constants.Debug)
+			System.out.println("a target was identified to taunt...");
+
+		CodeTerminatorSocketMessage msg = new CodeTerminatorSocketMessage();
+		msg.MessageType = MessageTypes.Taunt_Target;
+		msg.TargetWarrior = tauntTarget;
+		msg.ClientWarrior = Player;
+
+		if(Constants.Debug)
+			System.out.println("msg object created...");
+		
+		int tauntIndex = _dice.nextInt() % Player.Taunts.size();
+		
+		if(Constants.Debug)
+			System.out.println(String.format("taunt index is :  %d", tauntIndex));
+		
+		msg.Arguments.add(Player.Taunts.get(tauntIndex));
+		
+		if(Constants.Debug)
+			System.out.println("taunt was added to message arguments..");
+
+		SetClientNotificationMessage(String.format("You taunt %s:  %s", tauntTarget.Name, Player.Taunts.get(tauntIndex)));
+		RenderPlayerScreen();
+		
+		SendSocketMessage(msg);
+		
+	}
+	
+	private void ViewTargetStats(){
+		Warrior updatedTarget = _serverClients.get(ClientsTarget.Name);
+		ClientsTarget = updatedTarget;
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("     Here are the Details of your Target \r\n");
+		sb.append("  ----------------------------------------  \r\n");
+		sb.append("   Player Name:  ").append(ClientsTarget.Name).append("\r\n");
+		sb.append("  Warrior Type:  ").append(ClientsTarget.Type).append("\r\n");
+		sb.append("        Origin:  ").append(ClientsTarget.Origin).append("\r\n");
+		sb.append("   Description:  ").append(ClientsTarget.Description).append("\r\n");
+		sb.append("    Maximum HP:  ").append(ClientsTarget.MaxHealth).append("\r\n");
+		sb.append("    Current HP:  ").append(ClientsTarget.CurrentHealth).append("\r\n");
+		sb.append("\r\n");
+
+		SetClientNotificationMessage(sb.toString());
+		RenderPlayerScreen();
+		RenderActionQuery();
+	}
+	
+	private Warrior SelectClientPlayer(){
+		Scanner in = new Scanner(System.in);
+		String targetText = in.next();
+		
+		try{
+			if(Constants.Debug)
+				System.out.println("entered value:  " + targetText);
+			
+			int targetId = parseInt(targetText);
+			targetId--;
+
+			if(Constants.Debug)
+				System.out.println(String.format("entered number:  %d", targetId));
+			
+			Warrior[] tmp = new Warrior[0];
+			Warrior[] serverClients = _serverClients.values().toArray(tmp);
+
+			if(0 <= targetId && targetId <= serverClients.length ){
+				return serverClients[targetId];
+			}
+			else{
+				SetClientNotificationMessage("Invalid Target Id Selection...  Please try again");
+				return null;
+			}
+		}
+		catch(Exception ex){
+			System.out.println("There was a problem selecting a target player, please try your request again...");
+			System.out.println(ex.toString());
+			
+			return null;
+		}
+	}
+	
+	private void EngageTarget(){
+		SetClientNotificationMessage("Enter the player's number that you wish to target:  ");
+		
+		Warrior selectedTarget = SelectClientPlayer();
+
+		if(selectedTarget == null)
+			return;
+		
+		if(selectedTarget.HasTarget)
+		{
+			SetClientNotificationMessage(String.format("%s already has a target, you must target someone else! (It's no fair ganging up on someone)", selectedTarget.Name));
+			RenderPlayerScreen();
+			return;
+		}
+		
+		Player.HasTarget = true;
+		CodeTerminatorSocketMessage msg = new CodeTerminatorSocketMessage();
+		msg.MessageType = MessageTypes.Target_Change;
+		msg.TargetWarrior = selectedTarget;
+		msg.ClientWarrior = Player;
+		SendSocketMessage(msg);
+	}
+	
+	private void DisengageTarget(){
+		try
+		{
+			if(Player.HasTarget == true)
+			{
+				CodeTerminatorSocketMessage msg = new CodeTerminatorSocketMessage();
+				msg.MessageType = MessageTypes.Target_Change;
+				msg.TargetWarrior = ClientsTarget;
+				msg.ClientWarrior = Player;
+				Player.HasTarget = false;
+
+				SendSocketMessage(msg);
+				SetClientNotificationMessage(String.format("Fight with %s disengaged.", ClientsTarget.Name));
+				
+				if(Player.CurrentHealth > 0)
+					ClientsTarget = null;
+
+				RenderPlayerScreen();
+				//RenderActionQuery();
+
+				SendServerMyStatusChange();
+			}
+			else
+			{
+				SetClientNotificationMessage("You must be engaged with an opponent to disengage from opponent");
+			}
+		}
+		catch(Exception ex)
+		{
+			System.out.println("There was a problem disengaging from opponent");
+			System.out.println(ex.toString());
+		}
+	}
+	
+	private void AttackTarget(Attack attack){
+		if (Player.HasTarget == true)
+		{	
+			if(Player.CurrentStamina >= attack.StaminaCost){
+				
+				Player.CurrentStamina -= attack.StaminaCost;
+				
+				CodeTerminatorSocketMessage msg = new CodeTerminatorSocketMessage();
+				msg.MessageType = MessageTypes.Attack_Target;
+				msg.ClientWarrior = Player;
+				msg.TargetWarrior = ClientsTarget;
+				msg.TargetAttack = attack;
+				SendSocketMessage(msg);
+
+				SetClientNotificationMessage(String.format("Attacking %s with \"%s\" \r\n", ClientsTarget.Name, attack.Name));
+				RenderPlayerScreen();
+			}
+			else{
+				SetClientNotificationMessage(String.format("You don't have enough Stamina to attack with %s", attack.Name));
+			}
+		}
+		else
+		{
+			SetClientNotificationMessage("Please select an opponent before attacking");
+		}
+	}
+	
+	public void SendSocketMessage(CodeTerminatorSocketMessage msg){
+		_out.println(SerializeObjectNoLineBreaks(msg));
+	}
+	
+	public void RenderPlayerScreen(){
+		if(Player != null && _realmName != null)
+			RenderPlayerScreen(Player, _serverClients, _realmName);
+	}
+	
+	private void RenderPlayerScreen(Warrior player, Map<String, Warrior> clients, String realmName){
+		Console.ClearConsole();
+		StringBuilder sb = new StringBuilder();
+		
+		
+		sb.append(String.format("%70s", "You've entered the Realm of " + realmName));
+		sb.append("\r\n");
+		
+		sb.append(RenderClientPlayerInfo(player));
+		sb.append(" Stamina:  ");
+		for(int i = 0; i < player.CurrentStamina; i++)
+			sb.append("X");
+		
+		for(int i = player.CurrentStamina; i < player.MaxStamina; i++)
+			sb.append(".");
+		
+		sb.append("\r\n\r\n\r\n");
+		
+		if(clients != null){
+			sb.append(RenderServerPlayers(clients));
+			sb.append("\r\n\r\n");
+		}
+		
+		sb.append(" Your Target:  \r\n");
+		if(player.HasTarget){
+			sb.append(RenderClientPlayerInfo(ClientsTarget));
+		}
+		else{
+			sb.append(" <no players targeted>   \r\n");
+		}
+		
+		sb.append("\r\n\r\n");
+		sb.append("     Available Actions   \r\n");
+                sb.append("\r\n");
+		sb.append(" 1:  Pick/Change Target   \r\n");
+		sb.append(" 2:  View Player Information   \r\n");
+		sb.append("\r\n       <Attacks>   \r\n");
+		sb.append(String.format(" 3:  %-22s   %s\r\n", player.Weak.Name, player.CurrentStamina >= player.Weak.StaminaCost ? "" : "(not enough stamina)"));
+		sb.append(String.format(" 4:  %-22s   %s\r\n", player.Normal.Name, player.CurrentStamina >= player.Normal.StaminaCost ? "" : "(not enough stamina)"));
+		sb.append(String.format(" 5:  %-22s   %s\r\n", player.Strong.Name, player.CurrentStamina >= player.Strong.StaminaCost ? "" : "(not enough stamina)"));
+		sb.append("\r\n       <Other Actions>   \r\n");
+		sb.append(" 6:  Disengage Target   \r\n");
+		sb.append(" 7:  Taunt Target   \r\n");
+		//sb.append(" 8:  (no action item)   \r\n");
+		sb.append("\r\n       <Quit>   \r\n");
+		sb.append(" 9:  Run Home!   \r\n");
+		
+		sb.append("\r\n\r\n");
+		
+		sb.append(RenderClientNotificationMessage());
+		
+		System.out.print(sb.toString());
+		
+		//render client's player info
+		//													render connected players header
+		//													1: render connected players
+		//													2: render connected players
+		//													3: render connected players
+		//
+		//
+		//render current target header
+		//render target info (if selected)
+		//
+		//
+		//
+		//Player Actions:
+		//	1:	Pick/Change Target
+		//	2:	View Player's Stats
+		//	3:	"Weak" Target
+		//	4:	"Average" Target
+		//	5:	"Strong" Target
+		//	6:	Disengage Target
+		//	7:	Taunt Target
+		//	8:	
+		//	9:	Run Home!
+	}
+	
+	public void RenderActionQuery(){
+		System.out.print("Select an Action:  ");
+	}
+	
+	private void SetClientNotificationMessage(String message){
+		_notificationMessage = message;
+	}
+	
+	private String _notificationMessage = null;
+	private String RenderClientNotificationMessage(){
+		
+		if(_notificationMessage == null)
+			return "";
+		
+		return _notificationMessage + "\r\n";
+	}
+	
+	private String RenderHealthBar(Warrior war){
+		
+		StringBuilder sb = new StringBuilder();
+
+		//example is 100/100 hp
+		//25 X's
+		
+		//	75/100
+		//18 X's
+		// 1 x
+		
+		for(int i = 0; i < war.CurrentHealth / 4; i++)
+			sb.append("O");
+		
+		if(war.CurrentHealth % 4 >= 2)
+			sb.append("o"); //V^Xx
+		else if(war.CurrentHealth % 4 != 0)
+			sb.append(".");
+
+		for(int i = 0; i < (war.MaxHealth - war.CurrentHealth) / 4; i++)
+			sb.append(".");
+		
+		return sb.toString();
+	}
+	
+	private String RenderClientPlayerInfo(Warrior player){
+		//Player Name <Warrior Type> HP: XX/YY
+		StringBuilder sb = new StringBuilder();
+		sb.append(String.format("  %s <%s>  HP:%d/%d", player.Name, player.Type, player.CurrentHealth, player.MaxHealth));
+		if(player.Name.equals(Player.Name))
+			sb.append(String.format("  ST:%d/%d", player.CurrentStamina, player.MaxStamina));
+		
+		sb.append("\r\n");
+		
+		sb.append("  Health:  ");
+		sb.append(RenderHealthBar(player));
+		
+		sb.append("\r\n");
+		return sb.toString();
+	}
+	
+	private String RenderServerPlayers(Map<String, Warrior> clientPlayers){
+		StringBuilder sb = new StringBuilder();
+		
+		//render connected players header
+		
+		//												1: Player Name <warrior type> HP:  XX/YY
+		
+		sb.append(String.format("%110s", String.format("    %-21s ", "Player Name")+ String.format("%-16s ", "Class Type") + "    Health "));
+		sb.append("\r\n");
+		//int counter = 1;
+		
+		Warrior[] x = new Warrior[0];
+		Warrior[] warriors = clientPlayers.values().toArray(x);
+		
+		for(int i = 0; i < clientPlayers.size(); i++){
+			Warrior war = warriors[i];
+			
+			String engaged = String.format("%9s", war.HasTarget ? "[Engaged]" : "");
+			String numName = String.format("%d:  %-20s", i + 1, war.Name);
+			String warType = String.format("<%s>", war.Type);
+			sb.append(String.format("%110s", String.format("%s %s %-15s   HP: %-3d/%3d", engaged, numName, warType, war.CurrentHealth, war.MaxHealth)));
+			sb.append("\r\n");
+		}
+		
+		return sb.toString();
+	}
+	
+}

@@ -1,0 +1,28 @@
+<Entities.Warrior>
+	<Type>Mike Tyson</Type>
+	<Description>Thith is ludacrith</Description>
+	<Origin>The Streets</Origin>
+	<Weak>
+		<Name>jab</Name>
+		<Strength>1</Strength>
+		<StaminaCost>1</StaminaCost>
+	</Weak>
+	<Normal>
+		<Name>Sucker Punch</Name>
+		<Strength>8</Strength>
+		<StaminaCost>2</StaminaCost>
+	</Normal>
+	<Strong>
+		<Name>Ear Bite</Name>
+		<Strength>10</Strength>
+		<StaminaCost>4</StaminaCost>
+	</Strong>
+	<MaxHealth>92</MaxHealth>
+	<CurrentHealth>92</CurrentHealth>
+	<MaxStamina>10</MaxStamina>
+	<CurrentStamina>6</CurrentStamina>
+	<Taunts>
+		<string>I will Bite chore friggin eew off</string>
+		<string>Everyone has a plan...  till they get punched in the mouff</string>
+	</Taunts>
+</Entities.Warrior>
